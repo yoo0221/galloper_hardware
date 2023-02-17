@@ -130,9 +130,9 @@ void fpRegister(){
   // 로그인
   Serial.print("ID: ");
   String username = Serial.readStringUntil('\n');
-  Serial.print("PASSWORD: ")
+  Serial.print("PASSWORd: ");
   String password = Serial.readStringUntil('\n');
-  postAccountToServer(String username, String password);
+  postAccountToServer(username, password);
   // 로그인 실패 시(값 없음:128 // 아이디 없음:-1)
   if(fid = -1){
     return;
@@ -148,13 +148,13 @@ void fpRegister(){
     }
     Serial.print("Enrolling ID #");
     Serial.println(id);
-    fid = id
+    fid = id;
   }
   //fid값 등록 지문으로 설정 될 것
   while (getFingerprintEnroll() != true );
   
   //서버 전송부
-  postFidToServer(fid);
+  postFidToServer(fid, username);
 }
 
 void fpCheck(){
@@ -167,16 +167,18 @@ void postAccountToServer(String username, String password){
 
     String jsondata = "";
 
-    StaticJsonBuffer<200> jsonBuffer;
-    JsonObject& root = jsonBuffer.createObject();
+    StaticJsonDocument<200> root;
+    // JsonObject& root = jsonBuffer.createObject();/
     root["username"] = username;
     root["password"] = password;
     
-    root.printTo(jsondata);
+    userid = username;    
+
+    serializeJson(root, jsondata);
     Serial.println(jsondata);
 
      // send the HTTP POST request
-    client.print(F("POST /lightdata"));
+    client.print(F("POST /fpregister"));
     client.print(F(" HTTP/1.1\r\n"));
     client.print(F("Cache-Control: no-cache\r\n"));
     client.print(F("Host: 172.30.1.58:8000\r\n")); //IP세팅하고
@@ -193,7 +195,7 @@ void postAccountToServer(String username, String password){
   }
   else {
     Serial.println("connection failed");
-    getIsconnected = false;
+    getIsConnected = false;
   }
   //값 받는 부분
   int headcount = 0;
@@ -217,12 +219,14 @@ void postAccountToServer(String username, String password){
       //데이터 영역/
       if(headcount == 13){
         //JSON파싱//
-        StaticJsonBuffer<200> jsonBuffer;
-        JsonObject& root = jsonBuffer.parseObject(rcvbuf);
-        userid = root["userid"];
+        StaticJsonDocument<200> root;
+        // JsonObject& root = jsonBuffer.parseOb/ject(rcvbuf);
+        DeserializationError error = deserializeJson(root, rcvbuf);
+        if (error)
+          return;
         fid = root["fid"];
         
-        Serial.println(result);
+        Serial.println(fid);
   
         client.stop(); //클라이언트 접속 해제//
         
@@ -235,17 +239,19 @@ void postAccountToServer(String username, String password){
   client.stop();
 }
 
-void postFidToServer(int fid){
+void postFidToServer(int fid, String username){
   if (client.connect(hostIp, SERVER_PORT)){
     Serial.println("Connecting...");
 
     String jsondata = "";
 
-    StaticJsonBuffer<200> jsonBuffer;
-    JsonObject& root = jsonBuffer.createObject();
+    StaticJsonDocument<200> root;
+    // JsonObject& root = jsonBuffe/r.createObject();
+    root["username"] = username;
     root["fid"] = fid;
     
-    root.printTo(jsondata);
+    // root.printTo(jsondata);
+    serializeJson(root, jsondata);
     Serial.println(jsondata);
 
      // send the HTTP POST request
@@ -266,7 +272,7 @@ void postFidToServer(int fid){
   }
   else {
     Serial.println("connection failed");
-    getIsconnected = false;
+    getIsConnected = false;
   }
 
   //값 받는 부분
@@ -291,10 +297,13 @@ void postFidToServer(int fid){
   //     //데이터 영역/
   //     if(headcount == 13){
   //       //JSON파싱//
-  //       StaticJsonBuffer<200> jsonBuffer;
-  //       JsonObject& root = jsonBuffer.parseObject(rcvbuf);
-  //       String result = root["result"];
-        
+  //       StaticJsonDocument<200> root;
+  //         // JsonObject& root = jsonBuffer.parseOb/ject(rcvbuf);
+  //       DeserializationError error = deserializeJson(root, rcvbuf);
+          //  if (error)
+          //    return;
+          //  String result = root["result"];
+           
   //       Serial.println(result);
   
   //       client.stop(); //클라이언트 접속 해제//
@@ -502,6 +511,6 @@ int getFingerprintEnroll() {
     return p;
   }
 
-  fid = finger.fingerID
+  fid = finger.fingerID;
   return true;
 }
